@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Stop Procrastinating",
+  "version": "1.0.0",
+  "description": "Blocks a list of domains and redirects visits to one of your chosen redirect URLs.",
+  "permissions": ["storage", "webNavigation", "tabs", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Domain Blocker & Redirector"
+  },
+  "options_page": "options.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Stop Procrastinating — Settings</title>
+<link rel="stylesheet" href="options.css" />
+<link rel="stylesheet" href="challenge.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Block Domains</h1>
+      <label class="switch">
+        <input type="checkbox" id="enabledToggle" />
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <p class="status" id="statusLine"></p>
+    <p class="countdown" id="countdown"></p>
+
+    <div class="columns">
+      <section class="card">
+        <h2>Blocked domains</h2>
+        <p class="hint">One domain per line. Subdomains are blocked automatically (e.g. <code>example.com</code> also blocks <code>www.example.com</code>).</p>
+        <textarea id="blockedDomains" rows="14" placeholder="example.com&#10;anotherdomain.com"></textarea>
+        <div class="row">
+          <input type="text" id="newBlockedDomain" placeholder="add a domain and press Enter" />
+          <button id="addBlockedBtn">Add</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Redirect URLs</h2>
+        <p class="hint">One URL per line. When a blocked domain is visited, the extension sends the tab to one of these.</p>
+        <textarea id="redirectUrls" rows="14" placeholder="https://example-redirect.com&#10;https://another-redirect.com"></textarea>
+        <div class="row">
+          <input type="text" id="newRedirectUrl" placeholder="add a redirect URL and press Enter" />
+          <button id="addRedirectBtn">Add</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card mode-card">
+      <h2>Redirect selection</h2>
+      <div class="row mode-row">
+        <label><input type="radio" name="mode" value="random" /> Random</label>
+        <label><input type="radio" name="mode" value="sequential" /> Sequential (round-robin)</label>
+      </div>
+      <p class="hint">Redirects so far: <strong id="redirectCount">0</strong></p>
+    </section>
+
+    <section class="card mode-card">
+      <h2>Import / export</h2>
+      <p class="hint">Save your lists and settings to a JSON file, or load them back in (e.g. to sync between machines or back up before making changes).</p>
+      <div class="row">
+        <button id="exportBtn">Export settings</button>
+        <button id="importBtn">Import settings</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden />
+      </div>
+      <p class="hint" id="importMsg"></p>
+    </section>
+
+    <div class="actions">
+      <button id="saveBtn" class="primary">Save changes</button>
+      <span id="savedMsg" class="saved-msg"></span>
+    </div>
+  </div>
+
+  <script src="challenge.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Block Domains</title>
+<link rel="stylesheet" href="popup.css" />
+<link rel="stylesheet" href="challenge.css" />
+</head>
+<body>
+  <div class="popup">
+    <div class="top">
+      <strong>Block Domains</strong>
+      <label class="switch">
+        <input type="checkbox" id="enabledToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <p class="countdown" id="countdown"></p>
+    <p class="current" id="currentSite">—</p>
+
+    <button id="blockCurrentBtn">Block this site</button>
+    <button id="openOptionsBtn" class="secondary">Open settings</button>
+
+    <p class="counts" id="counts"></p>
+  </div>
+  <script src="challenge.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
