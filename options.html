@@ -51,6 +51,28 @@
     </section>
 
     <section class="card mode-card">
+      <h2>Search engine exception</h2>
+      <label class="checkbox-row">
+        <input type="checkbox" id="allowFromSearchEngines" />
+        Allow visits arriving from a search engine
+      </label>
+      <div id="searchEngineDetails" class="search-engine-details" hidden>
+        <p class="hint">
+          When on, clicking through to a <strong>specific page</strong> on a
+          blocked site straight from a search results page (e.g. a Google
+          search) is allowed through instead of redirected. Landing on just
+          the site's base domain (its homepage, no specific path) is
+          <strong>always blocked</strong>, even from a search engine — this
+          only exempts deep links to particular content.
+          <strong>Trade-off:</strong> this still makes it easier to reach
+          content on a blocked site by searching for it.
+        </p>
+        <p class="hint" style="margin-top:12px;">Search engine domains (one per line):</p>
+        <textarea id="searchEngineDomains" rows="6" placeholder="google.com&#10;bing.com"></textarea>
+      </div>
+    </section>
+
+    <section class="card mode-card">
       <h2>Import / export</h2>
       <p class="hint">Save your lists and settings to a JSON file, or load them back in (e.g. to sync between machines or back up before making changes).</p>
       <div class="row">

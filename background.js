@@ -3,6 +3,19 @@
 // entry in the blocked-domains list, the tab is redirected to one of the
 // URLs in the redirect list (chosen randomly or sequentially).
 
+const DEFAULT_SEARCH_ENGINES = [
+  "google.com",
+  "bing.com",
+  "duckduckgo.com",
+  "yahoo.com",
+  "search.brave.com",
+  "ecosia.org",
+  "startpage.com",
+  "yandex.com",
+  "baidu.com",
+  "qwant.com"
+];
+
 const DEFAULT_STATE = {
   enabled: true,
   blockedDomains: [],
@@ -11,7 +24,9 @@ const DEFAULT_STATE = {
   lastIndex: -1,
   stats: { redirectCount: 0 },
   disabledUntil: null, // timestamp (ms) when the extension will auto re-enable, or null
-  disableTimestamps: [] // recent times (ms) the user successfully switched off, for difficulty scaling
+  disableTimestamps: [], // recent times (ms) the user successfully switched off, for difficulty scaling
+  allowFromSearchEngines: false, // opt-in exception: skip the redirect if the click came from a search results page
+  searchEngineDomains: DEFAULT_SEARCH_ENGINES
 };
 
 const REACTIVATE_ALARM = "reactivate-enabled";
@@ -50,6 +65,43 @@ function ensureProtocol(url) {
   return url;
 }
 
+// webNavigation doesn't expose a referrer directly, so we approximate it:
+// at the moment a navigation starts, the tab's *current* URL (before it's
+// overwritten) is the page the click came from. For links opened in a new
+// tab (target="_blank"), the new tab has no prior URL of its own, so we
+// fall back to the opener tab's URL instead.
+async function getReferrerHostname(details) {
+  try {
+    const tab = await chrome.tabs.get(details.tabId);
+    let refUrl = tab.url;
+
+    if ((!refUrl || refUrl === "about:blank") && tab.openerTabId != null) {
+      try {
+        const opener = await chrome.tabs.get(tab.openerTabId);
+        refUrl = opener.url;
+      } catch (e) {
+        // opener tab may already be closed; nothing more we can do
+      }
+    }
+
+    if (!refUrl) return null;
+    return new URL(refUrl).hostname.toLowerCase();
+  } catch (e) {
+    return null;
+  }
+}
+
+// True if the URL is essentially just the domain itself — root path, no
+// query string — as opposed to a specific page/article/post on that domain.
+function isBaseDomainUrl(url) {
+  try {
+    const u = new URL(url);
+    return (u.pathname === "/" || u.pathname === "") && !u.search;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function pickRedirectUrl(state) {
   const list = state.redirectUrls;
   if (!list.length) return null;
@@ -85,6 +137,20 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     hostMatchesDomain(hostname, normalizeDomain(raw))
   );
   if (!isBlocked) return;
+
+  if (
+    state.allowFromSearchEngines &&
+    state.searchEngineDomains?.length &&
+    !isBaseDomainUrl(details.url)
+  ) {
+    const referrerHostname = await getReferrerHostname(details);
+    if (referrerHostname) {
+      const fromSearchEngine = state.searchEngineDomains.some((raw) =>
+        hostMatchesDomain(referrerHostname, normalizeDomain(raw))
+      );
+      if (fromSearchEngine) return; // let this one navigation through
+    }
+  }
 
   const targetUrl = await pickRedirectUrl(state);
   if (!targetUrl) return;

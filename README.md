@@ -67,6 +67,13 @@ you try to visit a blocked domain.
   full blocked-domains list and redirect-URLs list, one entry per line.
 - Toggle **Random** vs **Sequential** to control how the redirect target is
   chosen each time a blocked site is hit.
+- **Search-engine exception (off by default)**: in Settings, you
+  can enable "Allow visits arriving from a search engine" so that clicking a
+  blocked site directly from a search results page (Google, Bing, DuckDuckGo,
+  etc. — the list is editable) isn't redirected. This works by checking, at
+  the moment a navigation starts, either the tab's previous URL (same-tab
+  clicks) or the opener tab's URL (links opened in a new tab), and matching
+  its hostname against your search-engine list.
 
 ## Notes & limitations
 

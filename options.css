@@ -144,6 +144,24 @@ button.primary:hover { background: var(--accent-dark); }
   cursor: pointer;
 }
 
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.search-engine-details {
+  margin-top: 14px;
+}
+
 .actions {
   margin-top: 22px;
   display: flex;

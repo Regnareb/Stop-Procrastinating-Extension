@@ -1,3 +1,16 @@
+const DEFAULT_SEARCH_ENGINES = [
+  "google.com",
+  "bing.com",
+  "duckduckgo.com",
+  "yahoo.com",
+  "search.brave.com",
+  "ecosia.org",
+  "startpage.com",
+  "yandex.com",
+  "baidu.com",
+  "qwant.com"
+];
+
 const DEFAULT_STATE = {
   enabled: true,
   blockedDomains: [],
@@ -5,7 +18,9 @@ const DEFAULT_STATE = {
   mode: "random",
   lastIndex: -1,
   stats: { redirectCount: 0 },
-  disabledUntil: null
+  disabledUntil: null,
+  allowFromSearchEngines: false,
+  searchEngineDomains: DEFAULT_SEARCH_ENGINES
 };
 
 let disabledUntilCache = null;
@@ -75,7 +90,10 @@ const els = {
   exportBtn: document.getElementById("exportBtn"),
   importBtn: document.getElementById("importBtn"),
   importFile: document.getElementById("importFile"),
-  importMsg: document.getElementById("importMsg")
+  importMsg: document.getElementById("importMsg"),
+  allowFromSearchEngines: document.getElementById("allowFromSearchEngines"),
+  searchEngineDomains: document.getElementById("searchEngineDomains"),
+  searchEngineDetails: document.getElementById("searchEngineDetails")
 };
 
 function linesToArray(text) {
@@ -103,6 +121,9 @@ async function load() {
   els.redirectCount.textContent = state.stats?.redirectCount || 0;
   els.modeRadios.forEach((r) => (r.checked = r.value === state.mode));
   updateStatusLine(state);
+  els.allowFromSearchEngines.checked = state.allowFromSearchEngines;
+  els.searchEngineDetails.hidden = !state.allowFromSearchEngines;
+  els.searchEngineDomains.value = arrayToLines(state.searchEngineDomains);
   disabledUntilCache = state.disabledUntil;
   startCountdownTimer();
   clearDirty();
@@ -113,8 +134,17 @@ async function save() {
   const blockedDomains = linesToArray(els.blockedDomains.value);
   const redirectUrls = linesToArray(els.redirectUrls.value);
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "random";
+  const allowFromSearchEngines = els.allowFromSearchEngines.checked;
+  const searchEngineDomains = linesToArray(els.searchEngineDomains.value);
 
-  await chrome.storage.local.set({ enabled, blockedDomains, redirectUrls, mode });
+  await chrome.storage.local.set({
+    enabled,
+    blockedDomains,
+    redirectUrls,
+    mode,
+    allowFromSearchEngines,
+    searchEngineDomains
+  });
 
   const state = await chrome.storage.local.get(DEFAULT_STATE);
   updateStatusLine(state);
@@ -185,6 +215,11 @@ els.modeRadios.forEach((r) => r.addEventListener("change", save));
 // — flag it so we can warn before the tab closes with edits still unsaved.
 els.blockedDomains.addEventListener("input", markDirty);
 els.redirectUrls.addEventListener("input", markDirty);
+els.searchEngineDomains.addEventListener("input", markDirty);
+els.allowFromSearchEngines.addEventListener("change", () => {
+  els.searchEngineDetails.hidden = !els.allowFromSearchEngines.checked;
+  save();
+});
 
 const EXPORT_VERSION = 1;
 
@@ -206,7 +241,9 @@ els.exportBtn.addEventListener("click", async () => {
     enabled: state.enabled,
     mode: state.mode,
     blockedDomains: state.blockedDomains,
-    redirectUrls: state.redirectUrls
+    redirectUrls: state.redirectUrls,
+    allowFromSearchEngines: state.allowFromSearchEngines,
+    searchEngineDomains: state.searchEngineDomains
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -269,12 +306,21 @@ els.importFile.addEventListener("change", async () => {
 
   const mode = data.mode === "sequential" ? "sequential" : "random";
   const enabled = typeof data.enabled === "boolean" ? data.enabled : true;
+  const allowFromSearchEngines =
+    typeof data.allowFromSearchEngines === "boolean"
+      ? data.allowFromSearchEngines
+      : false;
+  const searchEngineDomains = Array.isArray(data.searchEngineDomains)
+    ? data.searchEngineDomains.filter((d) => typeof d === "string" && d.trim())
+    : DEFAULT_SEARCH_ENGINES;
 
   await chrome.storage.local.set({
     blockedDomains,
     redirectUrls,
     mode,
     enabled,
+    allowFromSearchEngines,
+    searchEngineDomains,
     lastIndex: -1
   });
 
