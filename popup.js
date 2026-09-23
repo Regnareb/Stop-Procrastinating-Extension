@@ -1,7 +1,7 @@
 const DEFAULT_STATE = {
   enabled: true,
   blockedDomains: [],
-  redirectUrls: ["https://en.wikipedia.org/wiki/Special:Random"],
+  redirectUrls: [],
   mode: "random",
   disabledUntil: null
 };

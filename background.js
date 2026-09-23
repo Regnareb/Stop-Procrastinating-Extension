@@ -19,7 +19,7 @@ const DEFAULT_SEARCH_ENGINES = [
 const DEFAULT_STATE = {
   enabled: true,
   blockedDomains: [],
-  redirectUrls: ["https://en.wikipedia.org/wiki/Special:Random"],
+  redirectUrls: [],
   mode: "random", // "random" | "sequential"
   lastIndex: -1,
   stats: { redirectCount: 0 },
