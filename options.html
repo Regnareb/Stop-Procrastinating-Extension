@@ -33,7 +33,7 @@
       <section class="card">
         <h2>Redirect URLs</h2>
         <p class="hint">One URL per line. When a blocked domain is visited, the extension sends the tab to one of these.</p>
-        <textarea id="redirectUrls" rows="14" placeholder="https://en.wikipedia.org/wiki/Special:Random&#10;https://another-redirect.com"></textarea>
+        <textarea id="redirectUrls" rows="14" placeholder="https://randomincategory.toolforge.org/Featured_articles?site=en.wikipedia.org"></textarea>
         <div class="row">
           <input type="text" id="newRedirectUrl" placeholder="add a redirect URL and press Enter" />
           <button id="addRedirectBtn">Add</button>
@@ -70,13 +70,7 @@
       <div id="searchEngineDetails" class="search-engine-details" hidden>
         <p class="hint">
           When on, clicking through to a <strong>specific page</strong> on a
-          blocked site straight from a search results page (e.g. a Google
-          search) is allowed through instead of redirected. Landing on just
-          the site's base domain (its homepage, no specific path) is
-          <strong>always blocked</strong>, even from a search engine — this
-          only exempts deep links to particular content.
-          <strong>Trade-off:</strong> this still makes it easier to reach
-          content on a blocked site by searching for it.
+          blocked site straight from a search results page is allowed through instead of redirected.
         </p>
         <p class="hint" style="margin-top:12px;">Search engine domains (one per line):</p>
         <textarea id="searchEngineDomains" rows="6" placeholder="google.com&#10;bing.com"></textarea>
