@@ -3,7 +3,7 @@
   "name": "Stop Procrastinating",
   "version": "1.0.0",
   "description": "Blocks a list of domains and redirects visits to one of your chosen redirect URLs.",
-  "permissions": ["storage", "webNavigation", "tabs", "alarms"],
+  "permissions": ["storage", "webNavigation", "tabs", "alarms", "readingList"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

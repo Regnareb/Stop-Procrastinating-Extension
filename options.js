@@ -20,7 +20,8 @@ const DEFAULT_STATE = {
   stats: { redirectCount: 0 },
   disabledUntil: null,
   allowFromSearchEngines: false,
-  searchEngineDomains: DEFAULT_SEARCH_ENGINES
+  searchEngineDomains: DEFAULT_SEARCH_ENGINES,
+  includeReadingListUrls: false
 };
 
 let disabledUntilCache = null;
@@ -93,7 +94,9 @@ const els = {
   importMsg: document.getElementById("importMsg"),
   allowFromSearchEngines: document.getElementById("allowFromSearchEngines"),
   searchEngineDomains: document.getElementById("searchEngineDomains"),
-  searchEngineDetails: document.getElementById("searchEngineDetails")
+  searchEngineDetails: document.getElementById("searchEngineDetails"),
+  includeReadingList: document.getElementById("includeReadingList"),
+  readingListInfo: document.getElementById("readingListInfo")
 };
 
 function linesToArray(text) {
@@ -113,6 +116,24 @@ function updateStatusLine(state) {
     : "Disabled — no redirects will happen.";
 }
 
+async function updateReadingListInfo() {
+  if (!els.includeReadingList.checked) {
+    els.readingListInfo.textContent = "";
+    return;
+  }
+  if (!chrome.readingList || typeof chrome.readingList.query !== "function") {
+    els.readingListInfo.textContent =
+      "Reading List isn't available in this browser version.";
+    return;
+  }
+  try {
+    const items = await chrome.readingList.query({});
+    els.readingListInfo.textContent = `${items.length} Reading List URL(s) currently included.`;
+  } catch (e) {
+    els.readingListInfo.textContent = "Couldn't read the Reading List.";
+  }
+}
+
 async function load() {
   const state = await chrome.storage.local.get(DEFAULT_STATE);
   els.enabledToggle.checked = state.enabled;
@@ -124,6 +145,8 @@ async function load() {
   els.allowFromSearchEngines.checked = state.allowFromSearchEngines;
   els.searchEngineDetails.hidden = !state.allowFromSearchEngines;
   els.searchEngineDomains.value = arrayToLines(state.searchEngineDomains);
+  els.includeReadingList.checked = state.includeReadingListUrls;
+  updateReadingListInfo();
   disabledUntilCache = state.disabledUntil;
   startCountdownTimer();
   clearDirty();
@@ -136,6 +159,7 @@ async function save() {
   const mode = document.querySelector('input[name="mode"]:checked')?.value || "random";
   const allowFromSearchEngines = els.allowFromSearchEngines.checked;
   const searchEngineDomains = linesToArray(els.searchEngineDomains.value);
+  const includeReadingListUrls = els.includeReadingList.checked;
 
   await chrome.storage.local.set({
     enabled,
@@ -143,7 +167,8 @@ async function save() {
     redirectUrls,
     mode,
     allowFromSearchEngines,
-    searchEngineDomains
+    searchEngineDomains,
+    includeReadingListUrls
   });
 
   const state = await chrome.storage.local.get(DEFAULT_STATE);
@@ -220,6 +245,10 @@ els.allowFromSearchEngines.addEventListener("change", () => {
   els.searchEngineDetails.hidden = !els.allowFromSearchEngines.checked;
   save();
 });
+els.includeReadingList.addEventListener("change", () => {
+  updateReadingListInfo();
+  save();
+});
 
 const EXPORT_VERSION = 1;
 
@@ -243,7 +272,8 @@ els.exportBtn.addEventListener("click", async () => {
     blockedDomains: state.blockedDomains,
     redirectUrls: state.redirectUrls,
     allowFromSearchEngines: state.allowFromSearchEngines,
-    searchEngineDomains: state.searchEngineDomains
+    searchEngineDomains: state.searchEngineDomains,
+    includeReadingListUrls: state.includeReadingListUrls
   };
 
   const blob = new Blob([JSON.stringify(payload, null, 2)], {
@@ -313,6 +343,10 @@ els.importFile.addEventListener("change", async () => {
   const searchEngineDomains = Array.isArray(data.searchEngineDomains)
     ? data.searchEngineDomains.filter((d) => typeof d === "string" && d.trim())
     : DEFAULT_SEARCH_ENGINES;
+  const includeReadingListUrls =
+    typeof data.includeReadingListUrls === "boolean"
+      ? data.includeReadingListUrls
+      : false;
 
   await chrome.storage.local.set({
     blockedDomains,
@@ -321,6 +355,7 @@ els.importFile.addEventListener("change", async () => {
     enabled,
     allowFromSearchEngines,
     searchEngineDomains,
+    includeReadingListUrls,
     lastIndex: -1
   });
 

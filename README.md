@@ -75,6 +75,12 @@ you try to visit a blocked domain.
   clicks) or the opener tab's URL (links opened in a new tab), and matching
   its hostname against your search-engine list.
 
+- **Optional: include Reading List URLs as redirect targets**: next to the
+  Redirect URLs box in Settings, ticking "Also include all Reading List
+  URLs" adds every page saved in Chrome's built-in Reading List (the one in
+  the side panel) to the pool of possible redirect destinations, alongside
+  whatever you've typed in manually.
+
 ## Notes & limitations
 
 - Matching is by hostname (registrable domain + subdomains), not by full

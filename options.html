@@ -38,7 +38,18 @@
           <input type="text" id="newRedirectUrl" placeholder="add a redirect URL and press Enter" />
           <button id="addRedirectBtn">Add</button>
         </div>
+        <label class="checkbox-row" style="margin-top:12px;">
+          <input type="checkbox" id="includeReadingList" />
+          Also include all Reading List URLs
+        </label>
+        <p class="hint" id="readingListInfo" style="margin-top:6px;"></p>
       </section>
+    </div>
+
+    <div class="actions">
+      <button id="saveBtn" class="primary">Save changes</button>
+      <span id="savedMsg" class="saved-msg"></span>
+      <span id="unsavedMsg" class="unsaved-msg">● Unsaved changes</span>
     </div>
 
     <section class="card mode-card">
@@ -82,12 +93,6 @@
       </div>
       <p class="hint" id="importMsg"></p>
     </section>
-
-    <div class="actions">
-      <button id="saveBtn" class="primary">Save changes</button>
-      <span id="savedMsg" class="saved-msg"></span>
-      <span id="unsavedMsg" class="unsaved-msg">● Unsaved changes</span>
-    </div>
   </div>
 
   <script src="challenge.js"></script>

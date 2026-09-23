@@ -26,7 +26,8 @@ const DEFAULT_STATE = {
   disabledUntil: null, // timestamp (ms) when the extension will auto re-enable, or null
   disableTimestamps: [], // recent times (ms) the user successfully switched off, for difficulty scaling
   allowFromSearchEngines: false, // opt-in exception: skip the redirect if the click came from a search results page
-  searchEngineDomains: DEFAULT_SEARCH_ENGINES
+  searchEngineDomains: DEFAULT_SEARCH_ENGINES,
+  includeReadingListUrls: false // opt-in: also use the browser's Reading List entries as redirect targets
 };
 
 const REACTIVATE_ALARM = "reactivate-enabled";
@@ -102,8 +103,28 @@ function isBaseDomainUrl(url) {
   }
 }
 
+// Reading List items can change at any time (the person adds/removes them
+// outside this extension entirely), so rather than copying them into
+// storage once, we fetch the live list each time a redirect target is
+// picked. Guarded in case the API is unavailable (older Chrome, or the
+// permission somehow isn't granted).
+async function getReadingListUrls() {
+  if (!chrome.readingList || typeof chrome.readingList.query !== "function") {
+    return [];
+  }
+  try {
+    const items = await chrome.readingList.query({});
+    return items.map((item) => item.url).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+}
+
 async function pickRedirectUrl(state) {
-  const list = state.redirectUrls;
+  let list = state.redirectUrls.slice();
+  if (state.includeReadingListUrls) {
+    list = list.concat(await getReadingListUrls());
+  }
   if (!list.length) return null;
 
   let index;
@@ -123,7 +144,8 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 
   const state = await getState();
   if (!state.enabled) return;
-  if (!state.blockedDomains.length || !state.redirectUrls.length) return;
+  if (!state.blockedDomains.length) return;
+  if (!state.redirectUrls.length && !state.includeReadingListUrls) return;
 
   let hostname;
   try {
