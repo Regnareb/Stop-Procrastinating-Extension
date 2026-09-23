@@ -85,6 +85,9 @@ you try to visit a blocked domain.
 
 - Matching is by hostname (registrable domain + subdomains), not by full
   URL/path — entering `example.com` blocks the whole site.
+- **A URL that's itself in your redirect pool (the manual Redirect URLs
+  list, or a live Reading List entry if that option is on) is never
+  blocked**, even if its domain is also on your blocklist. 
 - Only top-level (address-bar) navigations are intercepted — this covers
   typing a URL, clicking a link, bookmarks, etc. It does not block content
   loaded inside an `<iframe>` on an otherwise-allowed page.

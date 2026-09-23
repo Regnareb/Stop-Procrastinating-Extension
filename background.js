@@ -103,6 +103,20 @@ function isBaseDomainUrl(url) {
   }
 }
 
+// Compares URLs loosely: ignores protocol, a leading "www.", and a trailing
+// slash, so "https://example.com/foo" and "example.com/foo/" are treated as
+// the same destination.
+function normalizeUrlForComparison(url) {
+  try {
+    const u = new URL(ensureProtocol(url));
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${host}${path}${u.search}`;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Reading List items can change at any time (the person adds/removes them
 // outside this extension entirely), so rather than copying them into
 // storage once, we fetch the live list each time a redirect target is
@@ -120,21 +134,26 @@ async function getReadingListUrls() {
   }
 }
 
-async function pickRedirectUrl(state) {
+// The full pool of possible redirect destinations: the manual list, plus
+// live Reading List entries if that option is on.
+async function getRedirectPool(state) {
   let list = state.redirectUrls.slice();
   if (state.includeReadingListUrls) {
     list = list.concat(await getReadingListUrls());
   }
-  if (!list.length) return null;
+  return list;
+}
 
+function pickFromPool(pool, state) {
+  if (!pool.length) return null;
   let index;
   if (state.mode === "sequential") {
-    index = (state.lastIndex + 1) % list.length;
-    await chrome.storage.local.set({ lastIndex: index });
+    index = (state.lastIndex + 1) % pool.length;
+    chrome.storage.local.set({ lastIndex: index });
   } else {
-    index = Math.floor(Math.random() * list.length);
+    index = Math.floor(Math.random() * pool.length);
   }
-  return ensureProtocol(list[index]);
+  return ensureProtocol(pool[index]);
 }
 
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
@@ -160,6 +179,18 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   );
   if (!isBlocked) return;
 
+  const redirectPool = await getRedirectPool(state);
+
+  // Never block/redirect a URL that is itself one of the chosen redirect
+  // destinations — even if its domain also happens to be on the blocklist.
+  const normalizedTarget = normalizeUrlForComparison(details.url);
+  if (
+    normalizedTarget &&
+    redirectPool.some((raw) => normalizeUrlForComparison(raw) === normalizedTarget)
+  ) {
+    return;
+  }
+
   if (
     state.allowFromSearchEngines &&
     state.searchEngineDomains?.length &&
@@ -174,7 +205,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     }
   }
 
-  const targetUrl = await pickRedirectUrl(state);
+  const targetUrl = pickFromPool(redirectPool, state);
   if (!targetUrl) return;
 
   // Avoid an infinite loop if a blocked domain happens to equal the chosen
