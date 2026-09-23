@@ -10,6 +10,26 @@ const DEFAULT_STATE = {
 
 let disabledUntilCache = null;
 let countdownTimer = null;
+let isDirty = false;
+
+function markDirty() {
+  if (isDirty) return;
+  isDirty = true;
+  document.getElementById("unsavedMsg")?.classList.add("show");
+}
+
+function clearDirty() {
+  isDirty = false;
+  document.getElementById("unsavedMsg")?.classList.remove("show");
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (!isDirty) return;
+  // Chrome ignores any custom text and shows its own generic message —
+  // setting returnValue is what actually triggers the confirmation prompt.
+  e.preventDefault();
+  e.returnValue = "";
+});
 
 function formatCountdown(ms) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -49,6 +69,7 @@ const els = {
   addRedirectBtn: document.getElementById("addRedirectBtn"),
   saveBtn: document.getElementById("saveBtn"),
   savedMsg: document.getElementById("savedMsg"),
+  unsavedMsg: document.getElementById("unsavedMsg"),
   redirectCount: document.getElementById("redirectCount"),
   modeRadios: document.querySelectorAll('input[name="mode"]'),
   exportBtn: document.getElementById("exportBtn"),
@@ -84,6 +105,7 @@ async function load() {
   updateStatusLine(state);
   disabledUntilCache = state.disabledUntil;
   startCountdownTimer();
+  clearDirty();
 }
 
 async function save() {
@@ -100,6 +122,7 @@ async function save() {
   els.savedMsg.textContent = "Saved.";
   els.savedMsg.classList.add("show");
   setTimeout(() => els.savedMsg.classList.remove("show"), 1500);
+  clearDirty();
 }
 
 els.addBlockedBtn.addEventListener("click", () => {
@@ -157,6 +180,11 @@ els.enabledToggle.addEventListener("change", async () => {
 });
 els.saveBtn.addEventListener("click", save);
 els.modeRadios.forEach((r) => r.addEventListener("change", save));
+
+// Typing directly into either list is the one path that doesn't auto-save
+// — flag it so we can warn before the tab closes with edits still unsaved.
+els.blockedDomains.addEventListener("input", markDirty);
+els.redirectUrls.addEventListener("input", markDirty);
 
 const EXPORT_VERSION = 1;
 

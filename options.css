@@ -160,6 +160,16 @@ button.primary:hover { background: var(--accent-dark); }
 
 .saved-msg.show { opacity: 1; }
 
+.unsaved-msg {
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.unsaved-msg.show { opacity: 1; }
+
 /* Toggle switch */
 .switch {
   position: relative;
