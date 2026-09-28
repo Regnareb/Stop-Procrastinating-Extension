@@ -156,9 +156,15 @@ function pickFromPool(pool, state) {
   return ensureProtocol(pool[index]);
 }
 
-chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-  // Only act on the top-level frame (the address-bar navigation itself),
-  // not iframes embedded within a page.
+// Shared by two listeners:
+//  - onBeforeNavigate ("before"): the first line of defense, redirects before
+//    the blocked page loads.
+//  - onCommitted ("committed"): a safety net. It catches navigations that
+//    onBeforeNavigate never sees (e.g. a link shortener or tracking URL on an
+//    allowed site that server-side redirects to a blocked domain) and cases
+//    where the tabs.update() redirect lost a race with the original navigation.
+async function handleNavigation(details, phase) {
+  // Only act on the top-level frame, not iframes embedded within a page.
   if (details.frameId !== 0) return;
 
   const state = await getState();
@@ -183,6 +189,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 
   // Never block/redirect a URL that is itself one of the chosen redirect
   // destinations — even if its domain also happens to be on the blocklist.
+  // (This is also what prevents redirect loops.)
   const normalizedTarget = normalizeUrlForComparison(details.url);
   if (
     normalizedTarget &&
@@ -191,37 +198,54 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     return;
   }
 
-  if (
-    state.allowFromSearchEngines &&
-    state.searchEngineDomains?.length &&
-    !isBaseDomainUrl(details.url)
-  ) {
-    const referrerHostname = await getReferrerHostname(details);
-    if (referrerHostname) {
-      const fromSearchEngine = state.searchEngineDomains.some((raw) =>
-        hostMatchesDomain(referrerHostname, normalizeDomain(raw))
-      );
-      if (fromSearchEngine) return; // let this one navigation through
+  // Search-engine exception. The referrer can only be worked out before the
+  // navigation commits, so "before" records an allowance and "committed"
+  // honours it instead of re-checking.
+  const allowKey = `allowed:${details.tabId}`;
+  if (phase === "before") {
+    if (
+      state.allowFromSearchEngines &&
+      state.searchEngineDomains?.length &&
+      !isBaseDomainUrl(details.url)
+    ) {
+      const referrerHostname = await getReferrerHostname(details);
+      if (referrerHostname) {
+        const fromSearchEngine = state.searchEngineDomains.some((raw) =>
+          hostMatchesDomain(referrerHostname, normalizeDomain(raw))
+        );
+        if (fromSearchEngine) {
+          await chrome.storage.session.set({ [allowKey]: normalizedTarget });
+          return; // let this one navigation through
+        }
+      }
+    }
+  } else {
+    const stored = (await chrome.storage.session.get(allowKey))[allowKey];
+    if (stored) {
+      await chrome.storage.session.remove(allowKey);
+      if (stored === normalizedTarget) return;
     }
   }
 
   const targetUrl = pickFromPool(redirectPool, state);
   if (!targetUrl) return;
 
-  // Avoid an infinite loop if a blocked domain happens to equal the chosen
-  // redirect target's own domain.
-  let targetHostname = null;
-  try {
-    targetHostname = new URL(targetUrl).hostname;
-  } catch (e) {
-    /* ignore */
-  }
-  if (targetHostname && targetHostname === hostname) return;
-
   chrome.tabs.update(details.tabId, { url: targetUrl });
 
   const newCount = (state.stats?.redirectCount || 0) + 1;
   await chrome.storage.local.set({ stats: { redirectCount: newCount } });
+}
+
+chrome.webNavigation.onBeforeNavigate.addListener((details) =>
+  handleNavigation(details, "before")
+);
+chrome.webNavigation.onCommitted.addListener((details) =>
+  handleNavigation(details, "committed")
+);
+
+// Clean up any leftover search-engine allowance when a tab closes.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  chrome.storage.session.remove(`allowed:${tabId}`);
 });
 
 // Initialize default storage values on install.
