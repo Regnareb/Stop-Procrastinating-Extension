@@ -30,6 +30,11 @@ const DEFAULT_STATE = {
   includeReadingListUrls: false // opt-in: also use the browser's Reading List entries as redirect targets
 };
 
+// After a visit is let through from a search engine, URL changes within that
+// same blocked domain are also accepted for this long (covers redirects,
+// trailing-slash/consent hops, and quick clicks to another page on the site).
+const SEARCH_GRACE_MS = 5000;
+
 const REACTIVATE_ALARM = "reactivate-enabled";
 const DISABLE_DURATION_MINUTES = 5;
 // Must match DISABLE_HISTORY_WINDOW_MS in challenge.js — the rolling window
@@ -180,10 +185,10 @@ async function handleNavigation(details, phase) {
   }
   if (!hostname) return;
 
-  const isBlocked = state.blockedDomains.some((raw) =>
-    hostMatchesDomain(hostname, normalizeDomain(raw))
-  );
-  if (!isBlocked) return;
+  const matchedDomain = state.blockedDomains
+    .map(normalizeDomain)
+    .find((d) => hostMatchesDomain(hostname, d));
+  if (!matchedDomain) return;
 
   const redirectPool = await getRedirectPool(state);
 
@@ -197,6 +202,27 @@ async function handleNavigation(details, phase) {
   ) {
     return;
   }
+
+  // Search-engine grace window. If this tab was let through from a search
+  // engine, any navigation within the same blocked domain is accepted for
+  // SEARCH_GRACE_MS. The window is opened ONLY below, at the moment of the
+  // search-engine arrival, and is never extended or renewed by later
+  // navigations: its expiry is fixed. Once expired, normal blocking resumes.
+  const graceKey = `grace:${details.tabId}`;
+  if (state.allowFromSearchEngines) {
+    const grace = (await chrome.storage.session.get(graceKey))[graceKey];
+    if (
+      grace &&
+      Date.now() < grace.expires &&
+      hostMatchesDomain(hostname, grace.domain)
+    ) {
+      return;
+    }
+  }
+
+  // In-page (pushState/replaceState) URL changes never go through the
+  // search-engine referrer check: they can't originate from a search
+  // engine, so only the grace window above can let them through.
 
   // Search-engine exception. The referrer can only be worked out before the
   // navigation commits, so "before" records an allowance and "committed"
@@ -214,12 +240,18 @@ async function handleNavigation(details, phase) {
           hostMatchesDomain(referrerHostname, normalizeDomain(raw))
         );
         if (fromSearchEngine) {
-          await chrome.storage.session.set({ [allowKey]: normalizedTarget });
+          await chrome.storage.session.set({
+            [allowKey]: normalizedTarget,
+            [graceKey]: {
+              domain: matchedDomain,
+              expires: Date.now() + SEARCH_GRACE_MS
+            }
+          });
           return; // let this one navigation through
         }
       }
     }
-  } else {
+  } else if (phase === "committed") {
     const stored = (await chrome.storage.session.get(allowKey))[allowKey];
     if (stored) {
       await chrome.storage.session.remove(allowKey);
@@ -242,10 +274,16 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) =>
 chrome.webNavigation.onCommitted.addListener((details) =>
   handleNavigation(details, "committed")
 );
+// Single-page apps change the URL without a real navigation, so the two
+// listeners above never see it. Without this, clicking around inside an
+// SPA after the grace window would never be blocked.
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) =>
+  handleNavigation(details, "history")
+);
 
 // Clean up any leftover search-engine allowance when a tab closes.
 chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.session.remove(`allowed:${tabId}`);
+  chrome.storage.session.remove([`allowed:${tabId}`, `grace:${tabId}`]);
 });
 
 // Initialize default storage values on install.
