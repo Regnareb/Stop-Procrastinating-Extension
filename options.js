@@ -14,7 +14,7 @@ const DEFAULT_SEARCH_ENGINES = [
 const DEFAULT_STATE = {
   enabled: true,
   blockedDomains: [],
-  redirectUrls: [],
+  redirectUrls: ["https://randomincategory.toolforge.org/Featured_articles?site=en.wikipedia.org"],
   mode: "random",
   lastIndex: -1,
   stats: { redirectCount: 0 },
