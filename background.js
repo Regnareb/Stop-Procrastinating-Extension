@@ -258,6 +258,95 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(reconcileDisableState);
 
+// ---------------------------------------------------------------------------
+// Reactivation toast
+// ---------------------------------------------------------------------------
+
+// Injected into the page (via chrome.scripting.executeScript), so it must be
+// fully self-contained: it can't reference anything else in this file. It
+// renders inside a shadow root so the host page's CSS can't affect it.
+function showReactivationToast() {
+  const HOST_ID = "stop-procrastinating-toast-host";
+  document.getElementById(HOST_ID)?.remove();
+
+  const host = document.createElement("div");
+  host.id = HOST_ID;
+  host.style.cssText =
+    "all: initial; position: fixed; top: 20px; right: 20px; z-index: 2147483647;";
+  const root = host.attachShadow({ mode: "closed" });
+  root.innerHTML = `
+    <style>
+      .toast {
+        display: flex; align-items: center; gap: 10px;
+        max-width: 320px; padding: 12px 16px;
+        background: #1f2937; color: #fff;
+        font: 500 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+        border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.3);
+        opacity: 0; transform: translateY(-8px);
+        transition: opacity .25s ease, transform .25s ease;
+      }
+      .toast.show { opacity: 1; transform: translateY(0); }
+      .dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; flex: none; }
+    </style>
+    <div class="toast" role="status" aria-live="polite">
+      <span class="dot"></span>
+      <span>Stop Procrastinating is back on. This site is blocked.</span>
+    </div>`;
+  (document.body || document.documentElement).appendChild(host);
+
+  const toast = root.querySelector(".toast");
+  requestAnimationFrame(() => toast.classList.add("show"));
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => host.remove(), 300);
+  }, 4000);
+}
+
+// Shows the toast on every window's active tab, but only if that tab is
+// currently on a blocked domain (and isn't one of the exempt redirect
+// destinations, which the extension deliberately leaves alone).
+async function notifyReactivated() {
+  const state = await getState();
+  if (!state.blockedDomains.length) return;
+  const redirectPool = await getRedirectPool(state);
+
+  const tabs = await chrome.tabs.query({ active: true });
+  for (const tab of tabs) {
+    if (!tab.url || tab.id == null) continue;
+
+    let hostname;
+    try {
+      const u = new URL(tab.url);
+      if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+      hostname = u.hostname;
+    } catch (e) {
+      continue;
+    }
+
+    const isBlocked = state.blockedDomains.some((raw) =>
+      hostMatchesDomain(hostname, normalizeDomain(raw))
+    );
+    if (!isBlocked) continue;
+
+    const normalizedTab = normalizeUrlForComparison(tab.url);
+    if (
+      normalizedTab &&
+      redirectPool.some((raw) => normalizeUrlForComparison(raw) === normalizedTab)
+    ) {
+      continue;
+    }
+
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: showReactivationToast
+      });
+    } catch (e) {
+      // Some pages (e.g. the Chrome Web Store) can't be scripted; skip them.
+    }
+  }
+}
+
 // Whenever "enabled" is switched off, schedule an alarm to flip it back on
 // after DISABLE_DURATION_MINUTES. Whenever it's switched back on (by the
 // user, or by the alarm firing), clear any pending alarm/timestamp.
@@ -281,6 +370,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
       delayInMinutes: DISABLE_DURATION_MINUTES
     });
   } else if (changes.enabled.newValue === true) {
+    // Only a real off -> on transition counts as a reactivation.
+    if (changes.enabled.oldValue === false) notifyReactivated();
     chrome.alarms.clear(REACTIVATE_ALARM);
     const { disabledUntil } = await chrome.storage.local.get({
       disabledUntil: null

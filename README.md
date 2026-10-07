@@ -63,6 +63,11 @@ you try to visit a blocked domain.
   indefinitely without re-toggling. The 5-minute duration is set by
   `DISABLE_DURATION_MINUTES` at the top of `background.js` if you want to
   change it.
+- **Reactivation toast**: when the extension switches back on (automatically
+  after the timer, or manually), a small toast appears in the top-right corner
+  of the active tab in each window, but only if that tab is on a blocked
+  domain. It fades out after about 4 seconds. This uses the `scripting`
+  permission to show the toast on the page.
 - Click **Open settings** (or right-click the icon → Options) to manage the
   full blocked-domains list and redirect-URLs list, one entry per line.
 - Toggle **Random** vs **Sequential** to control how the redirect target is
